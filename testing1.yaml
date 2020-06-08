@@ -1,0 +1,7 @@
+source:
+  bucket: srcBucket
+  profile: srcProfile
+destination:
+  bucket: dstBucket
+  profile: dstProfile
+
