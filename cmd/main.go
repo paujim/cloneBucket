@@ -10,6 +10,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/iam/iamiface"
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/aws/aws-sdk-go/service/s3/s3iface"
+	"github.com/paujim/cloneBucket/pkg/services"
 )
 
 var (
@@ -36,7 +37,7 @@ var (
 
 func main() {
 
-	settings, err := CreateSettigns("settings.yaml")
+	settings, err := services.NewSettigns("settings.yaml")
 	if err != nil {
 		log.Printf("ERROR: %s\n", err.Error())
 		return
@@ -52,8 +53,11 @@ func main() {
 		return
 	}
 	destinationIAM, err := createIAMClient(settings.Destination.AWSProfile)
-
-	err = CreateCloner(sourceS3, destinationS3, destinationIAM, settings.Source.BucketName, settings.Destination.BucketName).Clone()
+	if err != nil {
+		log.Printf("ERROR: %s\n", err.Error())
+		return
+	}
+	err = services.NewCloner(sourceS3, destinationS3, destinationIAM, settings.Source.BucketName, settings.Destination.BucketName).Clone()
 	if err != nil {
 		log.Printf("ERROR: %s\n", err.Error())
 		return

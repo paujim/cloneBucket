@@ -1,38 +1,16 @@
-package main
+package services
 
 import (
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"net/url"
-	"os"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/iam"
 	"github.com/aws/aws-sdk-go/service/s3"
-	"gopkg.in/yaml.v2"
 )
-
-type BucketInfo struct {
-	BucketName *string `yaml:"bucket"`
-	AWSRegion  *string `yaml:"region"`
-	AWSProfile string  `yaml:"profile"`
-}
-
-type Settings struct {
-	Source      BucketInfo `yaml:"source"`
-	Destination BucketInfo `yaml:"destination"`
-}
-
-type Cloner struct {
-	dstIAMClient IAM
-	srcS3Client  S3
-	dstS3Client  S3
-	srcBucket    *string
-	dstBucket    *string
-}
 
 type IAM interface {
 	GetUser(input *iam.GetUserInput) (*iam.GetUserOutput, error)
@@ -45,26 +23,15 @@ type S3 interface {
 	CopyObject(*s3.CopyObjectInput) (*s3.CopyObjectOutput, error)
 }
 
-func CreateSettigns(filename string) (*Settings, error) {
-	yamlFile, err := os.Open(filename)
-	if err != nil {
-		return nil, err
-	}
-	defer yamlFile.Close()
-
-	byteValue, err := ioutil.ReadAll(yamlFile)
-	if err != nil {
-		return nil, err
-	}
-	var s Settings
-	err = yaml.Unmarshal(byteValue, &s)
-	if err != nil {
-		return nil, err
-	}
-	return &s, err
+type Cloner struct {
+	dstIAMClient IAM
+	srcS3Client  S3
+	dstS3Client  S3
+	srcBucket    *string
+	dstBucket    *string
 }
 
-func CreateCloner(sourceS3, destinationS3 S3, destinationIAM IAM, sourceBucket, destinationBucket *string) *Cloner {
+func NewCloner(sourceS3, destinationS3 S3, destinationIAM IAM, sourceBucket, destinationBucket *string) *Cloner {
 	return &Cloner{
 		dstIAMClient: destinationIAM,
 		srcS3Client:  sourceS3,
@@ -81,7 +48,7 @@ func (c *Cloner) updateSourceBucketPolicy() error {
 		return err
 	}
 	if resp.User.Arn == nil {
-		return errors.New("Invalid iam/user")
+		return errors.New("invalid iam/user")
 	}
 	jsonPolicy := fmt.Sprintf("{\"Version\": \"2012-10-17\", \"Statement\": [{ \"Effect\": \"Allow\",\"Principal\": {\"AWS\": \"%s\"}, \"Action\": [ \"s3:Get*\",\"s3:List*\"], \"Resource\": [\"arn:aws:s3:::%s\", \"arn:aws:s3:::%s/*\" ] } ]}", *resp.User.Arn, *c.srcBucket, *c.srcBucket)
 	log.Println(jsonPolicy)
@@ -104,7 +71,6 @@ func (c *Cloner) deleteSourceBucketPolicy() {
 	if err != nil {
 		log.Print(err.Error())
 	}
-	return
 }
 
 func (c *Cloner) copyBucket() error {

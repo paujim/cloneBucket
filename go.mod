@@ -1,4 +1,4 @@
-module cloneBucket
+module github.com/paujim/cloneBucket
 
 go 1.14
 
